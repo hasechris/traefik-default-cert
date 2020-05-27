@@ -12,6 +12,7 @@ import shlex
 import subprocess
 import sys
 
+certificates_key = 'Certificates'
 
 def main(raw_args=sys.argv[1:]):
     parser = argparse.ArgumentParser(
@@ -26,8 +27,12 @@ def main(raw_args=sys.argv[1:]):
 
     args = parser.parse_args(raw_args)
 
+    dest_dir = os.path.abspath(os.path.expanduser(args.dest_dir))
+    if not os.path.exists(dest_dir) or not os.path.isdir(dest_dir):
+        os.mkdir(dest_dir)
+
     new_privkey, new_fullchain = read_domain_certs(args.acme_json, args.domain)
-    start = new_fullchain.find('-----BEGIN CERTIFICATE-----', 1)
+    start = new_fullchain.find(b'-----BEGIN CERTIFICATE-----', 1)
     new_cert = new_fullchain[0:start]
     new_chain = new_fullchain[start:]
 
@@ -55,14 +60,14 @@ def main(raw_args=sys.argv[1:]):
 def read_cert(storage_dir, filename):
     cert_path = os.path.join(storage_dir, filename)
     if os.path.exists(cert_path):
-        with open(cert_path) as cert_file:
+        with open(cert_path, 'rb') as cert_file:
             return cert_file.read()
     return None
 
 
 def write_cert(storage_dir, filename, cert_content):
     cert_path = os.path.join(storage_dir, filename)
-    with open(cert_path, 'w') as cert_file:
+    with open(cert_path, 'wb') as cert_file:
         cert_file.write(cert_content)
     os.chmod(cert_path, 0o600)
 
@@ -71,11 +76,21 @@ def read_domain_certs(acme_json_path, domain):
     with open(acme_json_path) as acme_json_file:
         acme_json = json.load(acme_json_file)
 
-    certs_json = acme_json['Certificates']
-    domain_certs = [cert for cert in certs_json
-                    if cert['Domain']['Main'] == domain]
+    domain_certs = None
 
-    if not domain_certs:
+    for provider in acme_json:
+        if provider in acme_json:
+            provider = acme_json[provider]
+
+            if certificates_key in provider:
+                certs_json = provider[certificates_key]
+                domain_certs = [cert for cert in certs_json
+                                if cert['domain']['main'] == domain]
+
+                if domain_certs is not None:
+                    break
+
+    if domain_certs is None:
         raise RuntimeError(
             'Unable to find certificate for domain "%s"' % (domain,))
     elif len(domain_certs) > 1:
@@ -83,8 +98,8 @@ def read_domain_certs(acme_json_path, domain):
             'More than one (%d) certificates for domain "%s"' % (domain,))
 
     [domain_cert] = domain_certs
-    return (base64.b64decode(domain_cert['Key']),
-            base64.b64decode(domain_cert['Certificate']))
+    return (base64.b64decode(domain_cert['key']),
+            base64.b64decode(domain_cert['certificate']))
 
 
 def post_update(command):
