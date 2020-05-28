@@ -26,4 +26,8 @@ startup
 
 echo "=> Running inotifywait on file ${WATCH_FILE}"
 
+# run once on startup to ensure that the certificates are stored
+./acme-cert-dump.py --post-update /on-change.sh ${WATCH_FILE} ${CERT_DOMAIN} /cert
+
+# watch for changes
 oc "./acme-cert-dump.py --post-update /on-change.sh ${WATCH_FILE} ${CERT_DOMAIN} /cert"
