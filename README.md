@@ -11,11 +11,12 @@ This is a fork of [ziezo/traefik-default-cert](https://github.com/ziezo/traefik-
 ### Setup
 
 - edit traefik.[toml|yml]
+- edit dynamic configuration
 - touch acme.json
 - edit docker-compose.yml
 - docker-compose up -d
 
-### traefik.toml example
+### static configuration example (e.g. traefik.toml)
 
 ```toml
 [entryPoints]
@@ -24,36 +25,28 @@ This is a fork of [ziezo/traefik-default-cert](https://github.com/ziezo/traefik-
 
   [entryPoints.websecure]
     address = ":443"  
-    [entryPoints.https.tls]  
-      #define default cert to use when no SNI match is found  
-      [[entryPoints.https.tls.certificates]]  
-      certFile = "/cert/fullchain.pem"  
-      keyFile = "/cert/privkey.pem"  
-...
-#configure router with default domain name
-[http.routers]
-  [http.routers.my-router]
-    rule = "Host(`default.tld`)"
-    [http.routers.my-router.tls]
-      certResolver = "myresolver" # From static configuration
-      [[http.routers.my-router.tls.domains]]
+    [entryPoints.websecure.http.tls]
+      certResolver = "leresolver"
+      [[entryPoints.websecure.http.tls.domains]]
         main = "default.tld"
-        sans = ["second.tld"]
-...  
-#configure default certificate
+        sans = ["sub1.default.tld", "sub2.default.tld"]
+...
+#enable letsencrypt  
+[certificatesResolvers.leresolver.acme]
+  email = "your-email@example.com"
+  storage = "acme.json"
+  [certificatesResolvers.leresolver.acme.httpChallenge]
+    # used during the challenge
+    entryPoint = "web"
+```
+
+### dynamic configuration example
+```toml
 [tls.stores]
   [tls.stores.default]
     [tls.stores.default.defaultCertificate]
-      certFile = "/cert/fullchain.pem"
-      keyFile  = "/cert/privkey.pem"
-...
-#enable letsencrypt  
-[certificatesResolvers.myresolver.acme]
-  email = "your-email@example.com"
-  storage = "acme.json"
-  [certificatesResolvers.myresolver.acme.httpChallenge]
-    # used during the challenge
-    entryPoint = "web"
+      certFile = "/default-cert/fullchain.pem"
+      keyFile  = "/default-cert/privkey.pem"
 ```
 
 ### docker-compose example
@@ -71,7 +64,7 @@ services:
     volumes:
         # enable execution of docker inside container
         - /var/run/docker.sock:/var/run/docker.sock
-        # acme.json - must be at /letsencrypt/acme.json in container
+        # folder with LE json - also see env variable WATCH_FILE
         - ./letsencrypt:/letsencrypt:ro
         # traefik target for extracted cert
         - ./traefik/vol/cert:/traefik
@@ -100,7 +93,10 @@ services:
     image: traefik:v2.2 
     ports:  
         - "80:80"  
-        - "443:443"  
+        - "443:443"
+    volumes:
+        - ./traefik/vol/cert:/default-cert:ro
+        ...
     restart: always
     ...
 ```
