@@ -1,12 +1,29 @@
 #!/bin/bash
 [ -z "${CERT_DOMAIN}" ] && { echo "=> CERT_DOMAIN cannot be empty" && exit 1; }
-[ -z "${CRON_TIME}" ] && { echo "=> CRON_TIME cannot be empty" && exit 1; }
+[ -z "${WATCH_FILE}" ] && { echo "=> WATCH_FILE cannot be empty" && exit 1; }
 
-touch /cron.log
-tail -F /cron.log &
+function oc() {
+  inotifywait -m -q -e close_write,moved_to,create --format "%e %w%f" "${WATCH_FILE}" | while read -r events filename; do
+    if [ "${filename}" == "${WATCH_FILE}" ]; then
+      $1
+    fi
+  done
+}
 
-echo "${CRON_TIME} /cron.sh >> /cron.log 2>&1" > /crontab.conf
-crontab /crontab.conf
-echo "=> Running cron task manager"
-exec crond -f
+function startup() {
+  if [[ ! -f "${WATCH_FILE}" ]]; then
+    echo "=> Waiting for file ${WATCH_FILE}"
 
+    ( inotifywait -m -q -e create,open,moved_to --format '%w%f' "$(dirname "${WATCH_FILE}")" & echo $! >&3 ) 3>pid | \
+      while read i; do
+        [ "$i" = "${WATCH_FILE}" ] && break
+      done
+    kill $(<pid)
+  fi
+}
+
+startup
+
+echo "=> Running inotifywait on file ${WATCH_FILE}"
+
+oc "./acme-cert-dump.py --post-update /on-change.sh ${WATCH_FILE} ${CERT_DOMAIN} /cert"

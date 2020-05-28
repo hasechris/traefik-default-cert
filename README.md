@@ -65,31 +65,31 @@ services:
 ###################################################################################  
 # traefik-default-cert  
 ###################################################################################  
-  traefik-default-cert:  
-    container_name: traefik-default-cert  
-    image: cgoit/traefik-default-cert  
+  traefik-default-cert:
+    container_name: traefik-default-cert
+    image: cgoit/traefik-default-cert
     volumes:
-        #enable execution of docker inside container  
-        - /var/run/docker.sock:/var/run/docker.sock  
-        #acme.json  
-        - ./traefik/vol/acme.json:/acme.json:ro  
-        #treafik target for extracted cert 
+        # enable execution of docker inside container
+        - /var/run/docker.sock:/var/run/docker.sock
+        # acme.json - must be at /letsencrypt/acme.json in container
+        - ./letsencrypt:/letsencrypt:ro
+        # traefik target for extracted cert
         - ./traefik/vol/cert:/traefik
     environment:
-        #domain to extract (MAIN domain, not SAN domain)  
-        - "CERT_DOMAIN=default.tld"  
-        #where to copy the cert files (separated by :)  
+        # the file to be watched for changes
+        - "WATCH_FILE=/letsencrypt/acme.json"
+        # domain to extract (MAIN domain, not SAN domain)
+        - "CERT_DOMAIN=default.tld"
+        # where to copy the cert files (separated by :)
         - "COPY_FULLCHAIN=/traefik/fullchain.pem"
         - "COPY_PRIVKEY=/traefik/privkey.pem"
         - "COPY_CHAIN="
-        - "COPY_CERT="  
-        #containers to restart
+        - "COPY_CERT="
+        # containers to restart
         - "RESTART=traefik"
-        #cron time to run cert extract  
-        - "CRON_TIME=0 1 * * *"  
-    depends_on:  
-    - traefik  
-    restart: always  
+    depends_on:
+    - traefik
+    restart: always
   
   
 ###################################################################################  
