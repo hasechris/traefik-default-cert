@@ -2,6 +2,17 @@
 
 Docker Hub: [cgoit/traefik-default-cert](https://hub.docker.com/r/cgoit/traefik-default-cert/)
 
+alternativly  
+weekly auto-build (Gitlab online) for newest patches  
+[hasechris-docker-images/traefik-default-cert](https://gitlab.com/hasechris-docker-images/traefik-default-cert)  
+[![pipeline status](https://gitlab.com/hasechris-docker-images/traefik-default-cert/badges/master/pipeline.svg)](https://gitlab.com/hasechris-docker-images/traefik-default-cert/-/commits/master)
+
+
+compose-diff for weekly auto-built:  
+{- image: cgoit/traefik-default-cert -}  
+{+ image: registry.gitlab.com/hasechris-docker-images/traefik-default-cert:latest +}  
+
+
 Set default traefik 2 certificate.
 
 Extracts a specific certificate from acme.json and restart traefik container on changed cert. Can be used to setup a default cert for traefik, so that non SNI clients like IE8 work correctly.
